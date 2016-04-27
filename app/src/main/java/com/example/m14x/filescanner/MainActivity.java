@@ -37,21 +37,21 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.regex.Pattern;
 
 public class MainActivity extends AppCompatActivity {
     private static final String LOG_TAG = "FileScanner";
     public static final String BROADCAST_KEY = "Files";
     private Button startButton;
-    private HashMap<String,Integer> fileDetail = new HashMap<String,Integer>(); // file name of each file found in each folder , file size
-    private HashMap<String,String> filePath = new HashMap<String,String>();//filepath of each folder , single name of each folder
+    private HashMap<String,Integer> fileDetail = new HashMap<>(); // file name of each file found in each folder , file size
+    private HashMap<String,String> filePath = new HashMap<String,String>();//filepath of each file , single name of each file
     private ArrayList<String> folderName = new ArrayList<String>(); //name of each folder found in the external storage
-    private List<Integer> sizeCollection;
+    private ArrayList<Integer> sizeCollection;
     private TabLayout tabLayout;
     private ViewPager viewPager;
     private Map<String,Integer> mExtentionFrec = new HashMap<String,Integer>();
     private Intent service;
-    private CustomForegroundService foregroundService;
 
 
 
@@ -89,7 +89,6 @@ public class MainActivity extends AppCompatActivity {
                 }
             } else {
                 Log.d(LOG_TAG, "onCreate: " + "Permission already granted!");
-
                 setUpService();
             }
 
@@ -115,18 +114,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void setUpService(){
-        foregroundService = new CustomForegroundService();
-        service = new Intent(MainActivity.this, CustomForegroundService.class);
-        if (!foregroundService.IS_SERVICE_RUNNING) {
-            service.setAction(Constants.ACTION.STARTFOREGROUND_ACTION);
-            foregroundService.IS_SERVICE_RUNNING = true;
-            startButton.setText("Stop");
-        } else {
-            service.setAction(Constants.ACTION.STOPFOREGROUND_ACTION);
-            foregroundService.IS_SERVICE_RUNNING = false;
-            startButton.setText("Start");
 
-        }
+        CustomForegroundService.SERVICE_RUNNING = true;
+        service = new Intent(this,CustomForegroundService.class);
         startService(service);
     }
     private BroadcastReceiver mMessageReceiver = new BroadcastReceiver() {
@@ -134,16 +124,12 @@ public class MainActivity extends AppCompatActivity {
         public void onReceive(Context context, Intent intent) {
             folderName = intent.getStringArrayListExtra("folderName");
             filePath = (HashMap<String, String>) intent.getSerializableExtra("path-folder");
-            fileDetail = (HashMap<String, Integer>) intent.getSerializableExtra("name-size");
+            fileDetail = (HashMap<String,Integer>) intent.getSerializableExtra("name-size");
 
-            if (fileDetail.size() != 0) {
+            if (fileDetail.size() != 0 && filePath.size() != 0 && folderName.size() != 0) {
 
-                Log.d(LOG_TAG, "fileDetail On Create: " + Integer.toString(fileDetail.size()));
-                Log.d(LOG_TAG, "filePath On Create: " + Integer.toString(filePath.size()));
-                Log.d(LOG_TAG, "folderName On Create: " + Integer.toString(folderName.size()));
-
-                foregroundService.IS_SERVICE_RUNNING = false;
-                stopService(service);
+                //foregroundService.IS_SERVICE_RUNNING = false;
+                //service.setAction(Constants.ACTION.STOPFOREGROUND_ACTION);
                 startButton.setText("Start");
 
 
@@ -164,19 +150,19 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onBackPressed() {
         super.onBackPressed();
-        foregroundService.IS_SERVICE_RUNNING = false;
-        stopService(service);
-        startButton.setText("Start");
+        stopService();
+        this.finish();
     }
 
     public void orderBySize(){
+
         sizeCollection = new ArrayList<Integer>(fileDetail.values());
         Collections.sort(sizeCollection,Collections.<Integer>reverseOrder());
         //Log.d(LOG_TAG,sizeCollection.toString());
-        Log.d(LOG_TAG,sizeCollection.toString());
-        Log.d(LOG_TAG,fileDetail.toString());
-
+       // Log.d(LOG_TAG,sizeCollection.toString());
+        //Log.d(LOG_TAG,fileDetail.toString());
     }
+
     public int getAverage(){
        int size = sizeCollection.size();
         int sum = 0;
@@ -191,16 +177,30 @@ public class MainActivity extends AppCompatActivity {
     public void getExtention(){
         List<String> file = new ArrayList<String>(fileDetail.keySet());
         List<String> extention = new ArrayList<String>();
-        String[] stringSplited = new String[2];
+        //String[] stringSplited = new String[2];
+
         for(String n: file){
-            stringSplited= n.split(Pattern.quote("."));
-            extention.add(stringSplited[1]);
+            int i = n.lastIndexOf(".");
+            if(i>0){
+                extention.add(n.substring(i+1));
+            }
+            else{
+                extention.add("No Extention");
+            }
+            //stringSplited= n.split(Pattern.quote("."));
+            //Log.d("Split",stringSplited[0]+"-"+stringSplited[1]);
+            //if(stringSplited != null) {
+              //  extention.add(stringSplited[1]);
+            //}
         }
         HashSet<String> hashSet = new HashSet<String>(extention);
         for(String n: hashSet){
             mExtentionFrec.put(n,Collections.frequency(extention,n));
-
         }
         //Log.d(LOG_TAG,mExtentionFrec.toString());
+    }
+
+    private void stopService() {
+        CustomForegroundService.SERVICE_RUNNING = false;
     }
 }

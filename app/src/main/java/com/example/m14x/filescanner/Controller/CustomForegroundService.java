@@ -1,8 +1,10 @@
 package com.example.m14x.filescanner.Controller;
 
+import android.app.IntentService;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -20,54 +22,84 @@ import java.io.IOException;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.TreeMap;
 
 
 /**
  * Created by m14x on 04/20/2016.
  */
-public class CustomForegroundService extends Service {
+public class CustomForegroundService extends IntentService {
 
     private static final String LOG_TAG = "FileScanner";
     public static boolean IS_SERVICE_RUNNING = false;
-
-    private HashMap<String,Integer> fileDetail = new HashMap<String,Integer>(); // file name of each file found in each folder , file size
-    private HashMap<String,String> filePath = new HashMap<String,String>();//filepath of each folder , single name of each folder
+    private HashMap<String,Integer> fileDetail = new HashMap<>(); // file name of each file found in each folder , file size
+    private HashMap<String,String> filePath = new HashMap<String,String>();//filepath of each file , name of each file
     private ArrayList<String> folderName = new ArrayList<String>(); //name of each folder found in the external storage
+    private ArrayList<File> files = new ArrayList<>(); //all files found
+    private Context context;
+    public static volatile boolean SERVICE_RUNNING = true;
 
-
-
-
-    public CustomForegroundService(){
+    /**
+     * Creates an IntentService.  Invoked by your subclass's constructor.
+     *
+     * @param name Used to name the worker thread, important only for debugging.
+     */
+    public CustomForegroundService(String name) {
+        super(name);
 
     }
+    public CustomForegroundService(){
+        super("ForegrounService");
+    }
+
+
     @Override
     public void onCreate() {
         super.onCreate();
     }
 
     @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
-
-        if (intent.getAction().equals(Constants.ACTION.STARTFOREGROUND_ACTION)) {
-            //Log.d(LOG_TAG, "Received Start Foreground Intent ");
-            showNotification();
-            Toast.makeText(this, "Scanning for your files!", Toast.LENGTH_SHORT).show();
-
-            File dir= Environment.getExternalStorageDirectory();
-            Log.d("dirTag",dir.toString());
+    protected void onHandleIntent(Intent intent) {
+        if(SERVICE_RUNNING) {
             try {
-
-                getFiles(dir);
+                getFiles(Environment.getExternalStorageDirectory().getPath() + "/", files);
                 Intent dataIntent = new Intent(MainActivity.BROADCAST_KEY);
                 sendData(dataIntent);
-                Log.d(LOG_TAG,"fileDetail Service: "+Integer.toString(fileDetail.size()));
-                Log.d(LOG_TAG,"filePath Service : "+Integer.toString(filePath.size()));
-                Log.d(LOG_TAG,"folderName Service: "+Integer.toString(folderName.size()));
+
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            dir.deleteOnExit();
+        }
 
+
+    }
+
+/*    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+
+
+        if (intent.getAction().equals(Constants.ACTION.STARTFOREGROUND_ACTION)) {
+
+            try {
+                getFiles(Environment.getExternalStorageDirectory().getPath() + "/",files);
+                Intent dataIntent = new Intent(MainActivity.BROADCAST_KEY);
+                sendData(dataIntent);
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+
+            if(intent.getAction().equals(Constants.ACTION.STOPFOREGROUND_ACTION)){
+                stopForeground(true);
+                stopSelf();
+                Toast.makeText(this,"Service Stopped",Toast.LENGTH_SHORT).show();
+                Log.d(LOG_TAG,"Service Stopped");
+            }
+
+
+/*
 
         }  else if (intent.getAction().equals(Constants.ACTION.PLAY_ACTION)) {
             Log.d(LOG_TAG, "Clicked Play");
@@ -82,28 +114,33 @@ public class CustomForegroundService extends Service {
             Log.d(LOG_TAG, "Received Stop Foreground Intent");
             stopForeground(true);
             stopSelf();
+        }*/
+     /*   return START_STICKY;
+    }*/
+
+    public void getFiles(String directoryName, ArrayList<File> files) throws IOException {
+        File directory = new File(directoryName);
+        try {
+            Thread.sleep(10);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
-        return START_STICKY;
-    }
 
-    public void getFiles(File dir) throws IOException {
+        // get all the files from a directory
+        File[] fList = directory.listFiles();
+        for (File file : fList) {
+            if (file.isFile()) {
+                files.add(file);
+                filePath.put(file.getAbsolutePath(),file.getName());
+                int length = (int) file.length();
+                fileDetail.put(file.getName(),length);
+               Log.d("FILES - FILE",file.getName());
+                //Log.d("FILES",file.getPath());
 
-      File[] files = dir.listFiles();
-        filePath.clear();
-        for (File file : files){
-            filePath.put(String.valueOf(file.getAbsoluteFile()),String.valueOf(file.getName()));//Folder path, Folder single name
-            folderName.add(String.valueOf(file.getName()));
-        }
-
-        for(String fName : folderName) {
-
-            File folder = new File(dir, fName);
-
-            for (File file : folder.listFiles()) {
-                if (file.isFile()) {
-                    int fileSize = (int) file.length();
-                    fileDetail.put(file.getName(),fileSize);
-                }
+            } else if (file.isDirectory()) {
+                Log.d("FILES - FOLDER",file.getName());
+                folderName.add(file.getName());
+                getFiles(file.getAbsolutePath(), files);
             }
         }
     }
@@ -144,24 +181,14 @@ public class CustomForegroundService extends Service {
                 notification);
 
     }
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        Log.d(LOG_TAG, "In onDestroy");
-        Toast.makeText(getApplicationContext(),"Process completed",Toast.LENGTH_SHORT).show();
-    }
-
-    @Override
-    public IBinder onBind(Intent intent) {
-        // Used only in case if services are bound (Bound Services).
-        return null;
-    }
-
-  public void sendData(Intent intent){
+    public void sendData(Intent intent){
       intent.putExtra("name-size", fileDetail);
       intent.putExtra("path-folder", filePath);
       intent.putExtra("folderName", folderName);
       LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
   }
+
+
+
 
 }

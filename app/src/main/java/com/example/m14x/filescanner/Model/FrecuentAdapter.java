@@ -45,6 +45,10 @@ public class FrecuentAdapter extends RecyclerView.Adapter<FrecuentViewHolder> {
 
     @Override
     public int getItemCount() {
-        return mExtentionFrec.size();
+        if(mExtentionFrec.size()<5){
+            return mExtentionFrec.size();
+        }else {
+            return 5;
+        }
     }
 }

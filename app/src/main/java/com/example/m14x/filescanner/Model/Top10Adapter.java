@@ -9,6 +9,7 @@ import com.example.m14x.filescanner.R;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 
 /**
@@ -16,11 +17,11 @@ import java.util.Map;
  */
 public class Top10Adapter extends RecyclerView.Adapter<Top10ViewHolder> {
     private List<Integer> sizeCollection;
-    private HashMap<String,Integer> fileDetail = new HashMap<String,Integer>();
+    private HashMap<String,Integer> fileDetail = new HashMap<>();
 
     public Top10Adapter(List<Integer> sizeCollection,HashMap<String,Integer> fileDetail){
-        this.sizeCollection = sizeCollection;
         this.fileDetail = fileDetail;
+        this.sizeCollection = sizeCollection;
     }
 
     @Override
@@ -45,7 +46,7 @@ public class Top10Adapter extends RecyclerView.Adapter<Top10ViewHolder> {
         if(sizeCollection.size()<10){
             return sizeCollection.size();
         }else {
-            return sizeCollection.size();
+            return 10;
         }
     }
 
